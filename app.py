@@ -193,9 +193,8 @@ def csv_write_subtitles(path):
 ###############################################################################
 
 
-def main():
+def main(url: str):
     """Run all the all 'app.py' sequences."""
-    url = "https://youtu.be/HHjgK6p4nrw"
     xml_filename = download_youtube_subs(url)
 
     out_subtitles = extract_subtitles_xml(xml_filename)
@@ -204,9 +203,10 @@ def main():
     output_csv = f"subtitles_{xml_filename}.csv"
     csv_write_subtitles(output_csv)
 
-    print(f"Subtitles written to '{output_csv}' successfully!")
+    print(f"Subtitles written successfully to '{output_csv}'!")
     pass
 
 
 if __name__ == "__main__":
-    main()
+    url = "https://youtu.be/HHjgK6p4nrw"
+    main(url)
