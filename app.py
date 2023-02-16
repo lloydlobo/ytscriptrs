@@ -11,6 +11,11 @@ yt-dlp --all-subs --skip-download \
   --sub-format ttml/vtt/best \
   https://m.youtube.com/watch?v=XlAqrS-fSAI
 
+yt-dlp --write-auto-subs --skip-download \
+  --sub-format ttml/vtt/best \
+  --sub-langs en \
+  https://m.youtube.com/watch?v=XlAqrS-fSAI
+
 Source: https://gist.github.com/simonw/9932c6f10e241cfa6b19a4e08b283ca9
 """
 import csv
@@ -74,18 +79,15 @@ def extract_subtitles_xml(xml_file):
     # Parse the XML file.
     tree = ET.parse(xml_file)
     root = tree.getroot()
-    # print(tree, root)
 
     # Find all <p> elements and extract their text content.
     subtitles = []
     for p in root.iter("{http://www.w3.org/ns/ttml}p"):
         text = p.text
-        # print(text)
         if text is not None:
             text = text.strip()
             if len(text) > 0:
                 subtitles.append(text)
-    # print(subtitles)
     return subtitles
 
 
@@ -98,6 +100,7 @@ def download_youtube_subs(url):
 
     yt-dlp --all-subs --skip-download \
       --sub-format ttml/vtt/best \
+      --sub-langs en \
       https://youtu.be/HHjgK6p4nrw
     """
     command = [
@@ -106,27 +109,31 @@ def download_youtube_subs(url):
         "--skip-download",
         "--sub-format",
         "ttml/vtt/best",
+        "--sub-langs",
+        "en",
         url,
     ]
     process = subprocess.Popen(
-        #
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
+
     output, error = process.communicate()
     exit_code = process.returncode
+
     if exit_code == 0:
         print("Subtitles downloaded successfully!")
     else:
         print(f"Error downloading subtitles: {error.decode()}")
+
     # write output log to a file
     with open("app_log.txt", "wb") as f:
         f.write(output)
-    # read and print file contents
-    with open("app_log.txt", "rb") as f:
-        print(f.read().decode())
-    pass
+    # # read and print file contents
+    # # with open("app_log.txt", "rb") as f:
+    # #   # print(f.read().decode())
+    return find_subtitle_filename(output)
 
 
 ###############################################################################
@@ -142,8 +149,6 @@ def append_to_global_subtitles(out_subtitles):
         subtitle = {
             "id": str(uuid.uuid4()),
             "index": counter,
-            # "begin": "todo",
-            # "end": "todo",
             "subtitle": sub,
         }
         subtitles_global.append(subtitle)
@@ -152,14 +157,30 @@ def append_to_global_subtitles(out_subtitles):
     pass
 
 
+###############################################################################
+
+
+def find_subtitle_filename(output: bytes):
+    """Scrape yt-dlp subtitle output filename."""
+    term_log_info = "Writing video subtitles to: "
+    term_log = "[info] "
+    lines = (output.decode()).splitlines()
+    filename = ""
+    for i in range(len(lines)):
+        line = lines[i]
+        if ("Writing video subtitles to:").lower() in str(line.lower()):
+            filename = (line).replace(term_log, "").replace(term_log_info, "")
+    if len(filename) == 0:
+        print("No matches found")
+    return filename
+
+
 def csv_write_subtitles(path):
     """Write expenses to the CSV file, from the list of dictionaries."""
     with open(path, "w", newline="") as csv_file:
         fieldnames = [
             "id",
             "index",
-            # "begin",
-            # "end",
             "subtitle",
         ]
         csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
@@ -174,18 +195,16 @@ def csv_write_subtitles(path):
 
 def main():
     """Run all the all 'app.py' sequences."""
-    run_cmd(CMD_LS)
-
     url = "https://youtu.be/HHjgK6p4nrw"
-    download_youtube_subs(url)
+    xml_filename = download_youtube_subs(url)
 
-    # TODO: extract filename for each request from `yt-dlp` response message.
-    XML_FILE = "Guy Kawasaki： The Top 10 Mistakes of Entrepreneurs [HHjgK6p4nrw].en-ehkg1hFWq8A.ttml"
-    out_subtitles = extract_subtitles_xml(XML_FILE)
-
+    out_subtitles = extract_subtitles_xml(xml_filename)
     append_to_global_subtitles(out_subtitles)
-    csv_write_subtitles("subtitles.txt")
 
+    output_csv = f"subtitles_{xml_filename}.csv"
+    csv_write_subtitles(output_csv)
+
+    print(f"Subtitles written to '{output_csv}' successfully!")
     pass
 
 
