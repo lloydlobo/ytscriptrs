@@ -75,7 +75,7 @@ depending on the specific tasks you need to perform.
 
 nlp = spacy.load("en_core_web_sm")
 
-dictionary = []
+entities = []
 
 # Process the input text
 doc = nlp(paragraph)
@@ -87,10 +87,10 @@ for entity in doc.ents:
         "text": entity.text,
         "label": entity.label,
     }
-    dictionary.append(entry)
+    entities.append(entry)
 
 
-def csv_write_expenses(path):
+def csv_write_entries(path):
     """Write text & label to the CSV file, from the list of dictionary."""
     with open(path, "w", newline="") as csv_file:
         fieldnames = [
@@ -99,10 +99,11 @@ def csv_write_expenses(path):
         ]
         csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         csv_writer.writeheader()
-        for entry in dictionary:
+        for entry in entities:
             csv_writer.writerow(entry)
     pass
 
 
-csv_write_expenses(PATH_CSV_DATA_LABEL)
+csv_write_entries(PATH_CSV_DATA_LABEL)
+
 #############################################################################
