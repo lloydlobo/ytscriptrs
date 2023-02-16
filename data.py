@@ -20,4 +20,26 @@ your CSV data.
 """
 import csv
 
-print()
+PATH_CSV = "data.csv"
+
+# Open the CSV file and read its contents.
+with open(PATH_CSV, newline="") as csv_file:
+    data_reader = csv.reader(csv_file, delimiter=",", quotechar='"')
+    data = list(data_reader)
+    pass
+
+# Join the CSV data into a single paragraph.
+paragraph = ""
+for row in data:
+    if row:
+        # Join the non-empty cells of each row with spaces
+        paragraph += " ".join(row) + " "
+    else:
+        # Add a newline to separate the text into paragraphs
+        paragraph += "\n\n"
+
+PATH_TXT = PATH_CSV.replace(".csv", ".md")
+
+with open(PATH_TXT, "w", newline="") as txt_file:
+    txt_file.write(paragraph)
+    print(f"Written to {PATH_TXT} successfully!")
