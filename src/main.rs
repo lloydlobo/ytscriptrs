@@ -20,14 +20,15 @@ use xml::reader::{EventReader, XmlEvent};
 static ARGS: Lazy<[&'static str; 6]> = Lazy::new(|| {
     ["--all-subs", "--skip-download", "--sub-format", "ttml/vtt/best", "--sub-langs", "en"]
 });
+static URL: Lazy<&'static str> = Lazy::new(|| "https://youtu.be/HHjgK6p4nrw");
+static TERM_LOG_MESSAGE: Lazy<&'static str> = Lazy::new(|| "[info] Writing video subtitles to: ");
 
 fn main() {
     try_main().unwrap();
 }
 
 fn try_main() -> anyhow::Result<()> {
-    let url = "https://youtu.be/HHjgK6p4nrw";
-    let xml_file_path: String = download_youtube_subs(url)?;
+    let xml_file_path: String = download_youtube_subs(*URL)?;
     let subtitles_global = extract_subtitles_xml(&xml_file_path)?;
     let output_csv = format!("sub_{filename}.csv", filename = xml_file_path);
     csv_write_subtitles(&output_csv, &subtitles_global)?;
@@ -50,10 +51,9 @@ fn download_youtube_subs(url: &str) -> Result<String> {
 }
 
 fn find_subtitle_filename(output: &str) -> Result<String> {
-    let term_log_message = "[info] Writing video subtitles to: ";
-    let found = output.lines().par_bridge().find_first(|line| line.contains(term_log_message));
+    let found = output.lines().par_bridge().find_first(|line| line.contains(*TERM_LOG_MESSAGE));
     match found {
-        Some(val) => Ok(val.replace(term_log_message, "").trim().to_owned()),
+        Some(val) => Ok(val.replace(*TERM_LOG_MESSAGE, "").trim().to_owned()),
         None => Err(anyhow!("No matches found")),
     }
 }
