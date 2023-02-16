@@ -6,6 +6,7 @@ Cargo.lock
 *.ttml
 *.txt
 *.csv
+*.part
 
 # Env variables.
 .env

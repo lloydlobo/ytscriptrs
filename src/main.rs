@@ -1,13 +1,25 @@
 // #![allow(dead_code)]
+// TODO: remove filler,
+// * (audience clapping) * I wanna thank you Guy`--``
+// * `-` Well, thank you.
+// PERF: Change to find() method.
+// PERF: Use prefix methods.
+// # PERF: Replace "  " to "_".
+// [src/main.rs:70] &line = "[info] Writing video subtitles to: Guy Kawasaki： The Top 10 Mistakes
+// of Entrepreneurs [HHjgK6p4nrw].en-ehkg1hFWq8A.ttml" use rayon::iter::IntoParallelIterator;
+// use rayon::iter::IntoParallelRefIterator;
+// use rayon::prelude::IntoParallelRefMutIterator;
+
+use std::{fs::File, process::Command};
 
 use anyhow::{anyhow, Result};
-use std::{
-    fs::File,
-    io::{BufWriter, Write},
-    process::Command,
-};
-use uuid::Uuid;
+use once_cell::sync::Lazy;
+use rayon::{iter::ParallelIterator, prelude::ParallelBridge};
 use xml::reader::{EventReader, XmlEvent};
+
+static ARGS: Lazy<[&'static str; 6]> = Lazy::new(|| {
+    ["--all-subs", "--skip-download", "--sub-format", "ttml/vtt/best", "--sub-langs", "en"]
+});
 
 fn main() {
     try_main().unwrap();
@@ -16,17 +28,9 @@ fn main() {
 fn try_main() -> anyhow::Result<()> {
     let url = "https://youtu.be/HHjgK6p4nrw";
     let xml_file_path: String = download_youtube_subs(url)?;
-
-    let subtitles_global: Vec<Subtitle> = parse_map_subtitles(&xml_file_path)?;
+    let subtitles_global = extract_subtitles_xml(&xml_file_path)?;
     let output_csv = format!("sub_{filename}.csv", filename = xml_file_path);
     csv_write_subtitles(&output_csv, &subtitles_global)?;
-
-    {
-        // TODO: remove filler,
-        // (audience clapping)
-        // I wanna thank you Guy--
-        // - Well, thank you.
-    }
 
     Ok(())
 }
@@ -34,83 +38,27 @@ fn try_main() -> anyhow::Result<()> {
 //////////////////////////////////////////////////////////////////////////////////
 
 fn download_youtube_subs(url: &str) -> Result<String> {
-    let output = Command::new("yt-dlp")
-        .args([
-            "--all-subs",
-            "--skip-download",
-            "--sub-format",
-            "ttml/vtt/best",
-            "--sub-langs",
-            "en",
-            url,
-        ])
-        .output()?;
-
-    let stdout = String::from_utf8(output.stdout.clone())?;
-    let stderr = String::from_utf8(output.stderr)?;
-
+    let mut args = (*ARGS).to_vec();
+    args.push(url);
+    let output = Command::new("yt-dlp").args(args).output()?;
     match output.status.code().unwrap() {
         0 => println!("Subtitles downloaded successfully!"),
-        _ => println!("Error downloading subtitles: {}", stderr),
+        _ => println!("Error downloading subtitles: {}", String::from_utf8(output.stderr)?),
     }
-
-    let subtitle_filename = find_subtitle_filename(&stdout)?;
-    // let pattern = &"[info] Writing video subtitiles to: ";
-    // let subtitle_filename = stdout.lines().find(|line| line.contains(pattern));
-    // let subtitle_filename = match subtitle_filename {
-    //     Some(s) => s.replace(pattern, "").trim().to_owned(),
-    //     None => String::new(),
-    // };
-
-    // Write output log to a file.
-    let mut log_file = BufWriter::new(File::create("app_log.txt")?);
-    log_file.write_all(&output.stdout)?;
-
-    Ok(subtitle_filename)
-}
-
-// PERF: Change to find() method.
-// PERF: Use prefix methods.
-// # PERF: Replace "  " to "_".
-// [src/main.rs:70] &line = "[info] Writing video subtitles to: Guy Kawasaki： The Top 10 Mistakes of Entrepreneurs [HHjgK6p4nrw].en-ehkg1hFWq8A.ttml"
-fn find_subtitle_filename(output: &str) -> Result<String> {
-    let term_log_message = "[info] Writing video subtitles to: ";
-    for line in output.lines() {
-        if line.contains(term_log_message) {
-            let filename = line
-                .replace(term_log_message, "")
-                .trim() // .replace(" ", "_")
-                .to_owned();
-            // break;
-            return Ok(filename);
-        }
-    }
-    Err(anyhow!("No matches found"))
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-
-#[derive(Debug)]
-struct Subtitle {
-    id: String,
-    index: i32,
-    subtitle: String,
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-
-fn parse_map_subtitles(xml_file: &str) -> Result<Vec<Subtitle>> {
-    let out: Vec<Subtitle> = extract_subtitles_xml(xml_file)?
-        .into_iter()
-        .enumerate()
-        .map(|(i, subtitle)| Subtitle {
-            id: Uuid::new_v4().to_string(),
-            index: i as i32,
-            subtitle: subtitle.trim().to_string(),
-        })
-        .collect();
+    let out = find_subtitle_filename(&String::from_utf8(output.stdout)?)?;
     Ok(out)
 }
+
+fn find_subtitle_filename(output: &str) -> Result<String> {
+    let term_log_message = "[info] Writing video subtitles to: ";
+    let found = output.lines().par_bridge().find_first(|line| line.contains(term_log_message));
+    match found {
+        Some(val) => Ok(val.replace(term_log_message, "").trim().to_owned()),
+        None => Err(anyhow!("No matches found")),
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////////
 
 fn extract_subtitles_xml(xml_file: &str) -> Result<Vec<String>> {
     let file = File::open(xml_file)?;
@@ -123,7 +71,7 @@ fn extract_subtitles_xml(xml_file: &str) -> Result<Vec<String>> {
                     subtitles.push(s);
                 }
             }
-            Ok(XmlEvent::StartElement {
+            /* Ok(XmlEvent::StartElement {
                 name, attributes, ..
             }) => {
                 if name.local_name == "p" {
@@ -138,7 +86,7 @@ fn extract_subtitles_xml(xml_file: &str) -> Result<Vec<String>> {
                     // NOTE: Don't need this now.
                     // subtitles.push(text)
                 }
-            }
+            } */
             _ => {}
         }
     }
@@ -147,25 +95,17 @@ fn extract_subtitles_xml(xml_file: &str) -> Result<Vec<String>> {
 
 //////////////////////////////////////////////////////////////////////////////////
 
-/// NOTE: If each subtitle text is enclosed in double quotes, you may want to
-/// remove the double quotes while writing to a file, you can change the delimiter
-/// of the CSV writer to something other than a comma (which is the default delimiter),
-/// and then manually concatenate the subtitle text with the delimiter.
-///
-// PERF: Add id, index..
-// * wtr.write_record(&["id", "index", "subtitle"])?;
-// * let mut wtr = csv::Writer::from_writer(File::create(path)?);
-// * wtr.write_record(&[&subtitle.id, &subtitle.index.to_string(), &subtitle.subtitle])?;
-fn csv_write_subtitles(path: &str, subtitles_global: &[Subtitle]) -> anyhow::Result<()> {
+fn csv_write_subtitles(path: &str, subtitles_global: &[String]) -> anyhow::Result<()> {
     // Change delimiter to something other than comma.
     let mut wtr = csv::WriterBuilder::new().delimiter(b'\t').from_path(path)?;
 
-    wtr.write_record(["subtitle"])?; // Write header row.
-    subtitles_global // Write subtitle rows.
-        .iter()
-        .for_each(|subtitle| wtr.write_record([&subtitle.subtitle]).unwrap());
-
+    // Write header row. Write subtitle rows.
+    wtr.write_record(["subtitle"])?;
+    for subtitle in subtitles_global.iter() {
+        wtr.write_record([subtitle]).unwrap()
+    }
     wtr.flush()?; // Flush the writer to ensure all data is written to the file.
+
     println!("Subtitles written successfully to `{}`", path);
 
     Ok(())

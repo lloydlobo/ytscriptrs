@@ -128,8 +128,8 @@ def download_youtube_subs(url):
         print(f"Error downloading subtitles: {error.decode()}")
 
     # write output log to a file
-    with open("app_log.txt", "wb") as f:
-        f.write(output)
+    # with open("app_log.txt", "wb") as f:
+    # # f.write(output)
     # # read and print file contents
     # # with open("app_log.txt", "rb") as f:
     # #   # print(f.read().decode())
