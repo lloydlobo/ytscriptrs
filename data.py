@@ -17,8 +17,13 @@ Note that this script assumes that the CSV file uses commas as separators
 and double quotes as quote characters. You may need to adjust the delimiter
 and quotechar arguments of the csv.reader function to match the format of
 your CSV data.
+
+Install the model in your terminal or command prompt:
+    python -m spacy download en_core_web_sm
 """
 import csv
+
+import spacy
 
 PATH_CSV = "data.csv"
 
@@ -43,3 +48,30 @@ PATH_TXT = PATH_CSV.replace(".csv", ".txt")
 with open(PATH_TXT, "w", newline="") as txt_file:
     txt_file.write(paragraph)
     print(f"Written to {PATH_TXT} successfully!")
+
+#############################################################################
+
+"""
+This code will use the spaCy library to process the paragraph variable,
+which contains the text data. The nlp object is created by loading the
+pre-trained English language model from the spaCy library. The doc object
+is the result of running the NLP pipeline on the paragraph.
+
+The code then uses the ents attribute of the doc object to extract named
+entities from the text, such as people, organizations, and locations.
+The code will print out each entity and its label, which indicates the
+type of named entity it is.
+
+Customize the NLP pipeline by adding or removing components,
+such as entity recognition, dependency parsing, or part-of-speech tagging,
+depending on the specific tasks you need to perform.
+"""
+
+nlp = spacy.load("en_core_web_sm")
+
+# Process the input text
+doc = nlp(paragraph)
+
+# Find named entities in the text
+for entity in doc.ents:
+    print(entity.text, entity.label_)
