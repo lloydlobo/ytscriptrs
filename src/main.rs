@@ -71,9 +71,9 @@ fn download_youtube_subs(url: &str) -> Result<String> {
 fn find_subtitle_filename(output: &str) -> Result<String> {
     let term_log_message = "[info] Writing video subtitles to: ";
     for line in output.lines() {
-        if line.contains(&term_log_message) {
+        if line.contains(term_log_message) {
             let filename = line
-                .replace(&term_log_message, "")
+                .replace(term_log_message, "")
                 .trim() // .replace(" ", "_")
                 .to_owned();
             // break;
@@ -169,10 +169,10 @@ fn csv_write_subtitles(path: &str, subtitles_global: &[Subtitle]) -> anyhow::Res
     let mut wtr = csv::WriterBuilder::new().delimiter(b'\t').from_path(path)?;
 
     // Write header row.
-    wtr.write_record(&["subtitle"])?;
+    wtr.write_record(["subtitle"])?;
     // Write subtitle rows.
     for subtitle in subtitles_global {
-        wtr.write_record(&[&subtitle.subtitle])?;
+        wtr.write_record([&subtitle.subtitle])?;
     }
 
     // Flush the writer to ensure all data is written to the file.
