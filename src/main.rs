@@ -49,11 +49,13 @@ fn download_youtube_subs(url: &str) -> Result<String> {
     let out = find_subtitle_filename(&String::from_utf8(output.stdout)?)?;
     Ok(out)
 }
-
 fn find_subtitle_filename(output: &str) -> Result<String> {
-    let found = output.lines().par_bridge().find_first(|line| line.contains(*TERM_LOG_MESSAGE));
-    match found {
-        Some(val) => Ok(val.replace(*TERM_LOG_MESSAGE, "").trim().to_owned()),
+    match output.lines().par_bridge().find_first(|line| line.contains(*TERM_LOG_MESSAGE)) {
+        Some(val) => {
+            let mut filename = val.replace(*TERM_LOG_MESSAGE, "").trim().to_owned();
+            filename.shrink_to_fit(); // Optional: to reduce capacity.
+            Ok(filename)
+        }
         None => Err(anyhow!("No matches found")),
     }
 }
