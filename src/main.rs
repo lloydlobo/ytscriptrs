@@ -17,45 +17,30 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
-use rayon::{iter::ParallelIterator, prelude::ParallelBridge};
+use rayon::prelude::*;
 use xml::reader::{EventReader, XmlEvent};
 
 // static ARGS: Lazy<[&'static str; 6]> = Lazy::new(|| {
 //     ["--all-subs", "--skip-download", "--sub-format", "ttml/vtt/best", "--sub-langs", "en"]
 // });
-static URL: Lazy<&'static str> = Lazy::new(|| "https://youtu.be/HHjgK6p4nrw");
 // static TERM_LOG_MESSAGE: Lazy<&'static str> = Lazy::new(|| "[info] Writing video subtitles to:
 // ");
+static URL: Lazy<&'static str> = Lazy::new(|| "https://youtu.be/HHjgK6p4nrw");
+// * Removed the once_cell crate, as the static values can be defined directly without it.
 static ARGS: [&str; 6] =
     ["--all-subs", "--skip-download", "--sub-format", "ttml/vtt/best", "--sub-langs", "en"];
 static TERM_LOG_MESSAGE: &str = "[info] Writing video subtitles to: ";
 
+//////////////////////////////////////////////////////////////////////////////////
+
 fn main() {
     try_main().unwrap();
 }
-// * Removed the once_cell crate, as the static values can be defined directly without it.
-// * Replaced the rayon::iter::ParallelIterator trait with the simpler rayon::prelude::* module
-//   import, which includes the trait as well as a number of other commonly-used types and
-//   functions.
-// * Simplified the find_subtitle_filename function using the find_map method and the Option type's
-//   map and ok_or_else methods.
+
 fn try_main() -> anyhow::Result<()> {
     let output: Output = download_youtube_subs(*URL).unwrap();
     let file_api_video_title: &str = &String::from_utf8(output.stdout)?;
-    let xml_file_path = {
-        match file_api_video_title
-            .lines()
-            .par_bridge()
-            .find_last(|line| line.contains(TERM_LOG_MESSAGE))
-        {
-            Some(val) => {
-                let mut filename = val.replace(TERM_LOG_MESSAGE, "").trim().to_owned();
-                filename.shrink_to_fit(); // Optional: to reduce capacity.
-                Ok(filename)
-            }
-            None => Err(anyhow!("No matches found")),
-        }
-    }?;
+    let xml_file_path = find_subtitle_filename(file_api_video_title)?;
     let subtitles_global = extract_subtitles_xml(&xml_file_path)?;
     let output_csv = format!("sub_{filename}.csv", filename = xml_file_path);
     csv_write_subtitles(&output_csv, &subtitles_global)?;
@@ -73,10 +58,20 @@ fn download_youtube_subs(url: &str) -> Result<Output> {
     //     0 => println!("Subtitles downloaded successfully!"),
     //     _ => println!("Error downloading subtitles: {}", String::from_utf8(output.stderr)?),
     // }
-    // let out = find_subtitle_filename(&String::from_utf8(output.stdout)?)?;
     Ok(output)
 }
+
 fn find_subtitle_filename(output: &str) -> Result<String> {
+    output
+        .lines()
+        .find_map(|line| match line.contains(TERM_LOG_MESSAGE) {
+            true => Some(line.replace(TERM_LOG_MESSAGE, "").trim().to_owned()),
+            false => None,
+        })
+        .ok_or_else(|| anyhow!("No matches found"))
+}
+
+fn find_subtitle_filename_par(output: &str) -> Result<String> {
     match output.lines().par_bridge().find_first(|line| line.contains(TERM_LOG_MESSAGE)) {
         Some(val) => {
             let mut filename = val.replace(TERM_LOG_MESSAGE, "").trim().to_owned();
