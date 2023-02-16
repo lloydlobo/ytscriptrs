@@ -64,14 +64,15 @@ fn download_youtube_subs(url: &str) -> Result<Output> {
 fn find_subtitle_filename(output: &str) -> Result<String> {
     output
         .lines()
-        .find_map(|line| match line.contains(TERM_LOG_MESSAGE) {
+        .par_bridge()
+        .find_map_last(|line| match line.contains(TERM_LOG_MESSAGE) {
             true => Some(line.replace(TERM_LOG_MESSAGE, "").trim().to_owned()),
             false => None,
         })
         .ok_or_else(|| anyhow!("No matches found"))
 }
 
-fn find_subtitle_filename_par(output: &str) -> Result<String> {
+fn find_subtitle_filename_post(output: &str) -> Result<String> {
     match output.lines().par_bridge().find_first(|line| line.contains(TERM_LOG_MESSAGE)) {
         Some(val) => {
             let mut filename = val.replace(TERM_LOG_MESSAGE, "").trim().to_owned();
@@ -88,19 +89,15 @@ fn find_subtitle_filename_par(output: &str) -> Result<String> {
 // each subtitle to a Vec<String>. However, you could avoid allocating a new string for each
 // subtitle by using a String buffer and appending the subtitles to it. You can also preallocate the
 // Vec with an initial capacity to avoid reallocations as you add more elements.
-// let mut subtitles: Vec<String> = vec![];
-// for event in parser.into_iter() {
-// match event {
-// Ok(XmlEvent::Characters(s)) => {
-// if !s.trim().is_empty() {
-// subtitles.push(s); } }
 fn extract_subtitles_xml(xml_file: &str) -> Result<Vec<String>> {
     let file = File::open(xml_file)?;
     let parser = EventReader::new(file);
+
     // let mut subtitles = Vec::with_capacity(100); // Preallocate with initial capacity
     let mut subtitles = Vec::new();
     let mut buffer = String::new(); // Use a buffer to avoid allocating new strings
-    for event in parser.into_iter() {
+                                    //
+    parser.into_iter().for_each(|event| {
         match event {
             Ok(XmlEvent::Characters(s)) => {
                 if !s.trim().is_empty() {
@@ -116,7 +113,8 @@ fn extract_subtitles_xml(xml_file: &str) -> Result<Vec<String>> {
             subtitles.push(buffer.clone());
             buffer.clear();
         }
-    }
+    });
+
     Ok(subtitles)
 }
 
@@ -146,10 +144,11 @@ fn csv_write_subtitles(path: &str, subtitles_global: &[String]) -> anyhow::Resul
 
     // Write header row. Write subtitle rows.
     wtr.write_record(["subtitle"])?;
-    // subtitles_global.par_iter().for_each(|subtitle| wtr.write_record([subtitle]).unwrap());
+
     for subtitle in subtitles_global.iter() {
         wtr.write_record([subtitle]).unwrap()
     }
+
     wtr.flush()?; // Flush the writer to ensure all data is written to the file.
 
     println!("Subtitles written successfully to `{}`", path);
