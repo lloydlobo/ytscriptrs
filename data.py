@@ -25,10 +25,16 @@ import csv
 
 import spacy
 
-PATH_CSV = "data.csv"
+#############################################################################
+
+PATH_CSV_DATA = "data.csv"
+PATH_TXT = PATH_CSV_DATA.replace(".csv", ".txt")
+PATH_CSV_DATA_LABEL = PATH_CSV_DATA.replace("data", "data_label")
+
+#############################################################################
 
 # Open the CSV file and read its contents.
-with open(PATH_CSV, newline="") as csv_file:
+with open(PATH_CSV_DATA, newline="") as csv_file:
     data_reader = csv.reader(csv_file, delimiter=",", quotechar='"')
     data = list(data_reader)
     pass
@@ -43,7 +49,6 @@ for row in data:
         # Add a newline to separate the text into paragraphs
         paragraph += "\n\n"
 
-PATH_TXT = PATH_CSV.replace(".csv", ".txt")
 
 with open(PATH_TXT, "w", newline="") as txt_file:
     txt_file.write(paragraph)
@@ -67,7 +72,10 @@ such as entity recognition, dependency parsing, or part-of-speech tagging,
 depending on the specific tasks you need to perform.
 """
 
+
 nlp = spacy.load("en_core_web_sm")
+
+dictionary = []
 
 # Process the input text
 doc = nlp(paragraph)
@@ -75,3 +83,26 @@ doc = nlp(paragraph)
 # Find named entities in the text
 for entity in doc.ents:
     print(entity.text, entity.label_)
+    entry = {
+        "text": entity.text,
+        "label": entity.label,
+    }
+    dictionary.append(entry)
+
+
+def csv_write_expenses(path):
+    """Write text & label to the CSV file, from the list of dictionary."""
+    with open(path, "w", newline="") as csv_file:
+        fieldnames = [
+            "text",
+            "label",
+        ]
+        csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        csv_writer.writeheader()
+        for entry in dictionary:
+            csv_writer.writerow(entry)
+    pass
+
+
+csv_write_expenses(PATH_CSV_DATA_LABEL)
+#############################################################################
