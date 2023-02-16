@@ -14,10 +14,7 @@ use std::{fs::File, process::Command};
 
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
-use rayon::{
-    iter::ParallelIterator,
-    prelude::{ParallelBridge},
-};
+use rayon::{iter::ParallelIterator, prelude::ParallelBridge};
 use xml::reader::{EventReader, XmlEvent};
 
 static ARGS: Lazy<[&'static str; 6]> = Lazy::new(|| {
