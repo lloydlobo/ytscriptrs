@@ -1,5 +1,5 @@
 """
-Clean up subtitles csv file.
+Clean up subtitles csv file and write to .txt.
 
 ~~~~~~~~~~~~~~~~~~~
 
@@ -38,7 +38,7 @@ for row in data:
         # Add a newline to separate the text into paragraphs
         paragraph += "\n\n"
 
-PATH_TXT = PATH_CSV.replace(".csv", ".md")
+PATH_TXT = PATH_CSV.replace(".csv", ".txt")
 
 with open(PATH_TXT, "w", newline="") as txt_file:
     txt_file.write(paragraph)
