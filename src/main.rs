@@ -46,7 +46,7 @@ fn download_youtube_subs(url: &str) -> Result<String> {
         ])
         .output()?;
 
-    let stdout: String = String::from_utf8(output.stdout.clone())?;
+    let stdout = String::from_utf8(output.stdout.clone())?;
     let stderr = String::from_utf8(output.stderr)?;
 
     match output.status.code().unwrap() {
@@ -55,10 +55,15 @@ fn download_youtube_subs(url: &str) -> Result<String> {
     }
 
     let subtitle_filename = find_subtitle_filename(&stdout)?;
+    // let pattern = &"[info] Writing video subtitiles to: ";
+    // let subtitle_filename = stdout.lines().find(|line| line.contains(pattern));
+    // let subtitle_filename = match subtitle_filename {
+    //     Some(s) => s.replace(pattern, "").trim().to_owned(),
+    //     None => String::new(),
+    // };
 
     // Write output log to a file.
-    let f = File::create("app_log.txt")?;
-    let mut log_file = BufWriter::new(f);
+    let mut log_file = BufWriter::new(File::create("app_log.txt")?);
     log_file.write_all(&output.stdout)?;
 
     Ok(subtitle_filename)
@@ -94,6 +99,19 @@ struct Subtitle {
 
 //////////////////////////////////////////////////////////////////////////////////
 
+fn parse_map_subtitles(xml_file: &str) -> Result<Vec<Subtitle>> {
+    let out: Vec<Subtitle> = extract_subtitles_xml(xml_file)?
+        .into_iter()
+        .enumerate()
+        .map(|(i, subtitle)| Subtitle {
+            id: Uuid::new_v4().to_string(),
+            index: i as i32,
+            subtitle: subtitle.trim().to_string(),
+        })
+        .collect();
+    Ok(out)
+}
+
 fn extract_subtitles_xml(xml_file: &str) -> Result<Vec<String>> {
     let file = File::open(xml_file)?;
     let parser = EventReader::new(file);
@@ -111,14 +129,10 @@ fn extract_subtitles_xml(xml_file: &str) -> Result<Vec<String>> {
                 if name.local_name == "p" {
                     let mut text = String::new();
                     attributes
-                        .into_iter()
+                        .iter()
                         .for_each(|attr| match attr.name.local_name.as_str() {
-                            "begin" => {
-                                text += &format!("{} - ", attr.value);
-                            }
-                            "end" => {
-                                text += &format!("{}\n", attr.value);
-                            }
+                            "begin" => text += &format!("{} - ", attr.value),
+                            "end" => text += &format!("{}\n", attr.value),
                             _ => {}
                         });
                     // NOTE: Don't need this now.
@@ -130,28 +144,6 @@ fn extract_subtitles_xml(xml_file: &str) -> Result<Vec<String>> {
     }
     Ok(subtitles)
 }
-
-fn parse_map_subtitles(xml_file: &str) -> Result<Vec<Subtitle>> {
-    let out: Vec<Subtitle> = extract_subtitles_xml(xml_file)?
-        .iter()
-        .enumerate()
-        .map(|(i, subtitle)| Subtitle {
-            id: Uuid::new_v4().to_string(),
-            index: i as i32,
-            subtitle: subtitle.trim().to_string(),
-        })
-        .collect();
-    Ok(out)
-}
-
-// fn append_to_global_subtitles(out_subtitles: &[String], subtitles_global: &mut Vec<Subtitle>) {
-//     for (i, sub) in out_subtitles.iter().enumerate() {
-//         if !sub.trim().is_empty() {
-//             let subtitle = Subtitle { id: Uuid::new_v4().to_string(), index: i as i32, subtitle: sub.clone(), };
-//             subtitles_global.push(subtitle);
-//         }
-//     }
-// }
 
 //////////////////////////////////////////////////////////////////////////////////
 
@@ -168,15 +160,12 @@ fn csv_write_subtitles(path: &str, subtitles_global: &[Subtitle]) -> anyhow::Res
     // Change delimiter to something other than comma.
     let mut wtr = csv::WriterBuilder::new().delimiter(b'\t').from_path(path)?;
 
-    // Write header row.
-    wtr.write_record(["subtitle"])?;
-    // Write subtitle rows.
-    for subtitle in subtitles_global {
-        wtr.write_record([&subtitle.subtitle])?;
-    }
+    wtr.write_record(["subtitle"])?; // Write header row.
+    subtitles_global // Write subtitle rows.
+        .iter()
+        .for_each(|subtitle| wtr.write_record([&subtitle.subtitle]).unwrap());
 
-    // Flush the writer to ensure all data is written to the file.
-    wtr.flush()?;
+    wtr.flush()?; // Flush the writer to ensure all data is written to the file.
     println!("Subtitles written successfully to `{}`", path);
 
     Ok(())
