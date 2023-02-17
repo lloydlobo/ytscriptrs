@@ -6,7 +6,7 @@ use xtask::Task;
 /// # Dev
 ///
 /// ```sh
-/// $ cargo watch -c -x 'r --bin xtask -- fetch'
+/// $ cargo watch -c -x 'r --bin xtask -- flamegraphserve'
 /// ```
 ///
 /// # Errors

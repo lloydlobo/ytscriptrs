@@ -6,67 +6,15 @@ use std::{
 
 use anyhow::{Context, Result};
 
-#[macro_export]
-macro_rules! tasks {
-    ($(
-        $task:ident => $description:expr;
-    )*) => {
-       #[derive(Debug, PartialEq)]
-        pub enum Task {
-            $($task),*
-        }
+////////////////////////////////////////////////////////////////////////////////
 
-        impl Task {
-            fn from_str(input: &str) -> Option<Self> {
-                match (input[0..1].to_uppercase() + &input[1..]).as_str() {
-                    $(stringify!($task) => Some(Task::$task),)*
-                    _ => None,
-                }
-            }
-
-            fn run(self)-> Result<()>{
-                match self{
-                    Task::Fetch => run_fetch()?,
-                    Task::Flamegraph => run_flamegraph()?,
-                    Task::Flamegraphserve => run_flamegraph_serve()?,
-                    Task::Todo => (),
-                }
-
-                Ok(())
-            }
-
-            pub fn main() -> Result<()> {
-                let args: Vec<String> = env::args().skip(1).collect();
-
-                if args.is_empty() {
-                    print_help()?;
-                } else if let Some(task) = Task::from_str(&args[0]) {
-                    task.run()?;
-                } else {
-                    writeln!(io::stderr(), "Invalid command: {}", args[0])?;
-                    print_help()?;
-                }
-                Ok(())
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! generate_help {
-    ( $( ($name:expr, $desc:expr) ),* ) => {{
-        let mut help = String::from(r#"xtask 0.0.0
+const HELP_HEADER: &str = r#"xtask 0.0.0
 A cargo-xtask automation tool
+
 USAGE:
     cargo xtask [COMMAND]...
 ARGS:
-"#);
-        $(
-            help.push_str(&format!("    {:<16}{}\n", $name, $desc));
-        )*
-        help
-    }};
-}
+"#;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -80,8 +28,6 @@ tasks!(
     Todo => "builds rustdoc documentation";
 );
 
-////////////////////////////////////////////////////////////////////////////////
-
 fn print_help() -> Result<()> {
     let help = generate_help!(
         ("fetch", "run --bin ytscriptrs to fetch youtube subtitles via yt-dlp CLI"),
@@ -92,6 +38,60 @@ fn print_help() -> Result<()> {
     eprintln!("{help}");
 
     Ok(())
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#[macro_export]
+macro_rules! generate_help {
+    ( $( ($name:expr, $desc:expr) ),* ) => {{
+        let mut help = String::from(HELP_HEADER);
+        $(
+            help.push_str(&format!("    {:<16}{}\n", $name, $desc));
+        )*
+        help
+    }};
+}
+
+#[macro_export]
+macro_rules! tasks {
+    ($(
+        $task:ident => $description:expr;
+    )*) => {
+       #[derive(Debug, PartialEq)]
+        pub enum Task {
+            $($task),*
+        }
+        impl Task {
+            fn from_str(input: &str) -> Option<Self> {
+                match (input[0..1].to_uppercase() + &input[1..]).as_str() {
+                    $(stringify!($task) => Some(Task::$task),)*
+                    _ => None,
+                }
+            }
+            fn run(self)-> Result<()>{
+                match self{
+                    Task::Fetch => run_fetch()?,
+                    Task::Flamegraph => run_flamegraph()?,
+                    Task::Flamegraphserve => run_flamegraph_serve()?,
+                    Task::Todo => (),
+                }
+                Ok(())
+            }
+            pub fn main() -> Result<()> {
+                let args: Vec<String> = env::args().skip(1).collect();
+                if args.is_empty() {
+                    print_help()?;
+                } else if let Some(task) = Task::from_str(&args[0]) {
+                    task.run()?;
+                } else {
+                    writeln!(io::stderr(), "Invalid command: {}", args[0])?;
+                    print_help()?;
+                }
+                Ok(())
+            }
+        }
+    };
 }
 
 ////////////////////////////////////////////////////////////////////////////////
