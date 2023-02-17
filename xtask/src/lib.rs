@@ -16,6 +16,14 @@ fn run_task(task: &TaskM) -> Result<()> {
     (task.func)()
 }
 
+// macro_rules! task {
+//     ($name:expr, $func:expr) => {{
+//         TaskM {
+//             name: stringify!($func).replace("run_", "").to_string(),
+//             func: Box::new($func),
+//         }
+//     }};
+// }
 macro_rules! task {
     ($name:expr, $func:expr) => {{
         TaskM { name: $name.to_string(), func: Box::new($func) }
@@ -58,6 +66,18 @@ pub fn try_run_task() -> Result<()> {
 
     Ok(())
 }
+
+/*
+
+.map(|(name, f)| {
+            task!(
+                name,
+                match stringify!($func).replace("run_", "").to_string() {
+                    name => func,
+                    _ => unreachable!(),
+                }
+            )
+ */
 
 ////////////////////////////////////////////////////////////////////////////////
 

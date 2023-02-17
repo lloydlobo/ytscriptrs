@@ -8,6 +8,7 @@ archive.rs
 *.txt
 *.csv
 *.part
+*.vtt
 data.md
 
 # Env variables.
