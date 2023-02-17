@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use xtask::Task;
+use xtask::try_run_task;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -13,7 +13,8 @@ use xtask::Task;
 ///
 /// This function will return an error if .
 fn main() -> Result<()> {
-    if let Err(e) = Task::main() {
+    // if let Err(e) = Task::main() {
+    if let Err(e) = try_run_task() {
         eprintln!("{}", fmt_error(e));
         std::process::exit(1);
     }

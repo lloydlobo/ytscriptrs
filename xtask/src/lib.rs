@@ -1,10 +1,63 @@
 use std::{
-    env,
-    io::{self, Write},
+    io::Write,
     process::{Command, Stdio},
 };
 
 use anyhow::{Context, Result};
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct TaskM {
+    name: String,
+    func: Box<dyn Fn() -> Result<()>>,
+}
+
+fn run_task(task: &TaskM) -> Result<()> {
+    (task.func)()
+}
+
+macro_rules! task {
+    ($name:expr, $func:expr) => {{
+        TaskM { name: $name.to_string(), func: Box::new($func) }
+    }};
+}
+
+pub fn try_run_task() -> Result<()> {
+    let tasks = vec![
+        task!("fetch", run_fetch),
+        task!("flamegraph", run_flamegraph),
+        task!("flamegraphserve", run_flamegraph_serve),
+        task!("todo", || Ok(())),
+    ];
+
+    let args: Vec<String> = std::env::args().collect();
+
+    match args.get(1).map(|s| s.as_str()) {
+        Some("list") => {
+            println!("Available tasks:");
+            for task in tasks.iter() {
+                println!("- {}", task.name);
+            }
+        }
+        Some(name) => {
+            let task = tasks.iter().find(|t| t.name == name);
+            match task {
+                Some(t) => run_task(t)?,
+                None => {
+                    eprintln!("Task not found: {}", name);
+                    print_help()?;
+                    std::process::exit(1);
+                }
+            }
+        }
+        None => {
+            print_help()?;
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -15,30 +68,6 @@ USAGE:
     cargo xtask [COMMAND]...
 ARGS:
 "#;
-
-////////////////////////////////////////////////////////////////////////////////
-
-// PERF: Combine the 2 macros above so that running and generating help happens here.
-// OR use `clap` :)
-
-tasks!(
-    Fetch => "run --bin ytscriptrs to fetch youtube subtitles via yt-dlp CLI";
-    Flamegraph => "generate a flamegraph of the binary";
-    Flamegraphserve => "generate a flamegraph and serve it via http";
-    Todo => "builds rustdoc documentation";
-);
-
-fn print_help() -> Result<()> {
-    let help = generate_help!(
-        ("fetch", "run --bin ytscriptrs to fetch youtube subtitles via yt-dlp CLI"),
-        ("flamegraph", "generate a flamegraph of the binary"),
-        ("flamegraphserve", "generate a flamegraph and serve it via http"),
-        ("todo", "builds rustdoc documentation")
-    );
-    eprintln!("{help}");
-
-    Ok(())
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -53,45 +82,17 @@ macro_rules! generate_help {
     }};
 }
 
-#[macro_export]
-macro_rules! tasks {
-    ($(
-        $task:ident => $description:expr;
-    )*) => {
-       #[derive(Debug, PartialEq)]
-        pub enum Task {
-            $($task),*
-        }
-        impl Task {
-            fn from_str(input: &str) -> Option<Self> {
-                match (input[0..1].to_uppercase() + &input[1..]).as_str() {
-                    $(stringify!($task) => Some(Task::$task),)*
-                    _ => None,
-                }
-            }
-            fn run(self)-> Result<()>{
-                match self{
-                    Task::Fetch => run_fetch()?,
-                    Task::Flamegraph => run_flamegraph()?,
-                    Task::Flamegraphserve => run_flamegraph_serve()?,
-                    Task::Todo => (),
-                }
-                Ok(())
-            }
-            pub fn main() -> Result<()> {
-                let args: Vec<String> = env::args().skip(1).collect();
-                if args.is_empty() {
-                    print_help()?;
-                } else if let Some(task) = Task::from_str(&args[0]) {
-                    task.run()?;
-                } else {
-                    writeln!(io::stderr(), "Invalid command: {}", args[0])?;
-                    print_help()?;
-                }
-                Ok(())
-            }
-        }
-    };
+fn print_help() -> Result<()> {
+    let help = generate_help!(
+        ("fetch", "run --bin ytscriptrs to fetch youtube subtitles via yt-dlp CLI"),
+        ("flamegraph", "generate a flamegraph of the binary"),
+        ("flamegraphserve", "generate a flamegraph and serve it via http"),
+        ("todo", "builds rustdoc documentation"),
+        ("list", "Available tasks:")
+    );
+    eprintln!("{help}");
+
+    Ok(())
 }
 
 ////////////////////////////////////////////////////////////////////////////////
