@@ -1,5 +1,5 @@
 """
-Clean up subtitles csv file and write to .txt.
+Clean up subtitles csv file and process with nlp the entities to data.txt.
 
 ~~~~~~~~~~~~~~~~~~~
 
@@ -25,34 +25,27 @@ import csv
 
 import spacy
 
-#############################################################################
-
-PATH_CSV_DATA = "data.csv"
-PATH_TXT = PATH_CSV_DATA.replace(".csv", ".txt")
-PATH_CSV_DATA_LABEL = PATH_CSV_DATA.replace("data", "data_label")
 
 #############################################################################
 
-# Open the CSV file and read its contents.
-with open(PATH_CSV_DATA, newline="") as csv_file:
-    data_reader = csv.reader(csv_file, delimiter=",", quotechar='"')
-    data = list(data_reader)
-    pass
 
-# Join the CSV data into a single paragraph.
-paragraph = ""
-for row in data:
-    if row:
-        # Join the non-empty cells of each row with spaces
-        paragraph += " ".join(row) + " "
-    else:
-        # Add a newline to separate the text into paragraphs
-        paragraph += "\n\n"
+def read_csv_to_paragraph(path_csv):
+    """Read CSV file and join cells into a single paragraph."""
+    with open(path_csv, newline="") as csv_file:
+        data_reader = csv.reader(csv_file, delimiter=",", quotechar='"')
+        data = list(data_reader)
 
+    paragraph = ""
+    for row in data:
+        if row:
+            # Join the non-empty cells of each row with spaces
+            paragraph += " ".join(row) + " "
+        else:
+            # Add a newline to separate the text into paragraphs
+            paragraph += "\n\n"
 
-with open(PATH_TXT, "w", newline="") as txt_file:
-    txt_file.write(paragraph)
-    print(f"Written to {PATH_TXT} successfully!")
+    return paragraph
+
 
 #############################################################################
 
@@ -73,26 +66,28 @@ depending on the specific tasks you need to perform.
 """
 
 
-nlp = spacy.load("en_core_web_sm")
+def extract_named_entities(paragraph):
+    """Extract named entities from paragraph using spaCy model."""
+    nlp = spacy.load("en_core_web_sm")
+    entities = []
 
-entities = []
+    # Process the input text
+    doc = nlp(paragraph)
 
-# Process the input text
-doc = nlp(paragraph)
+    # Find named entities in the text
+    for entity in doc.ents:
+        entry = {
+            "text": entity.text,
+            "label": entity.label_,
+        }
+        entities.append(entry)
 
-# Find named entities in the text
-for entity in doc.ents:
-    print(entity.text, entity.label_)
-    entry = {
-        "text": entity.text,
-        "label": entity.label,
-    }
-    entities.append(entry)
+    return entities
 
 
-def csv_write_entries(path):
-    """Write text & label to the CSV file, from the list of dictionary."""
-    with open(path, "w", newline="") as csv_file:
+def write_entries_to_csv(path_csv, entities):
+    """Write named entities to CSV file."""
+    with open(path_csv, "w", newline="") as csv_file:
         fieldnames = [
             "text",
             "label",
@@ -101,9 +96,25 @@ def csv_write_entries(path):
         csv_writer.writeheader()
         for entry in entities:
             csv_writer.writerow(entry)
-    pass
 
 
-csv_write_entries(PATH_CSV_DATA_LABEL)
+#############################################################################
+
+# Set paths for input and output files
+path_csv_data = "data.csv"
+path_txt = path_csv_data.replace(".csv", ".txt")
+path_csv_data_label = path_csv_data.replace("data", "data_label")
+
+#############################################################################
+
+# Read CSV data, extract named entities, and write to CSV file
+paragraph = read_csv_to_paragraph(path_csv_data)
+entities = extract_named_entities(paragraph)
+write_entries_to_csv(path_csv_data_label, entities)
+
+# Write paragraph to TXT file
+with open(path_txt, "w", newline="") as txt_file:
+    txt_file.write(paragraph)
+    print(f"Written to {path_txt} successfully!")
 
 #############################################################################
