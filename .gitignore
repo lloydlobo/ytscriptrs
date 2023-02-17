@@ -10,6 +10,7 @@ archive.rs
 *.part
 *.vtt
 data.md
+/research
 
 # Env variables.
 .env
